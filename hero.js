@@ -176,11 +176,69 @@ var moves = {
   // This hero will try really hard not to die.
   coward : function(gameData, helpers) {
     return helpers.findNearestHealthWell(gameData);
-  }
+  },
+  
+	// The "Paladin"
+	// This hero will prioritize healing nearby freindlies before seeking out weaker enemies.
+	paladin : function(gameData, helpers) {
+		var myHero = gameData.activeHero;
+		// locate the nearest healthwell
+		var hw = helpers.findNearestObjectDirectionAndDistance(gameData.board, myHero, function(tile) {
+		  if (tile.type === 'HealthWell') {
+			return true;
+		  }
+		});
+		var hwdis = hw.distance;
+		var hwdir = hw.direction;
+		// console.log("Well: " + hwdir + ", " + hwdis);
+
+		// locate the nearest friendly
+		var friend = helpers.findNearestObjectDirectionAndDistance(gameData.board, myHero, function(tile) {
+		  if (tile.type === 'Hero' && tile.team === myHero.team) {
+			return true;
+		  }
+		});
+		var tm = (friend) ? gameData.board.tiles[friend.coords[0]][friend.coords[1]] : false;
+		var tmdis = (friend) ? friend.distance : 99;
+		var tmdir = (friend) ? friend.direction : "N/A";
+		// console.log("Teammate: " + tm.health + ", " + tmdir + ", " + tmdis);
+
+		var enemyTarget = helpers.findNearestObjectDirectionAndDistance(gameData.board, myHero, function(tile) {
+		  if (tile.type === 'Hero' && tile.team !== myHero.team) {
+			return true;
+		  }
+		});
+		var enemy = (enemyTarget) ? gameData.board.tiles[enemyTarget.coords[0]][enemyTarget.coords[1]] : false;
+		var enemydis = (enemyTarget) ? enemyTarget.distance : 99;
+		var enemydir = (enemyTarget) ? enemyTarget.direction : "N/A";
+		var weakerEnemy = (enemy) ? enemy.health < myHero.health : false;
+		var canKillEnemyInNextTurn = (enemy) ? enemy.health <= 30 && enemydis === 1 : false;
+		// console.log("Enemy: " + enemy.health + ", " + enemydir + ", " + enemydis);
+
+
+		// console.log("My Health: " + myHero.health);
+		// first get close to a teammate, then go on the offensive
+		if (canKillEnemyInNextTurn && myHero.health > 20) {
+		  // console.log("Killing the " + enemydir + " enemy!");
+		  return enemydir;
+		} else if (tm && ((myHero.health === 100 & tm.health < 80 && tmdis <= 5) || (tm.health < 50 && tmdis === 1))) {
+		  // console.log("Going to heal the "+ tmdir +" teamate!");
+		  return tmdir;
+		} else if (myHero.health < 70) {
+		  // console.log("Heading to "+hwdir+" healthwell!");
+		  return hwdir;
+		} else if (enemy) {
+		  // console.log("Going after the "+enemydir+" enemy!");
+		  return enemydir;
+		} else {
+		  // console.log("Going to take over a mine!");
+		  return helpers.findNearestUnownedDiamondMine(gameData);
+		}
+	}
  };
 
 //  Set our heros strategy
-var  move =  moves.aggressor;
+var  move =  moves.paladin;
 
 // Export the move function here
 module.exports = move;
